@@ -1,17 +1,45 @@
 #!/usr/bin/env python3
 import argparse
 import os
-import subprocess
 import sys
 from pathlib import Path
-import configparser
 from config import config
-
+import logging
+from typing import Optional
 from analyzers.pmd import launch_pmd
 from corrections import fix_corrections
 
-# This script is calling a code linter, obtain the list of problems and use GenAI to fix them.
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+def validate_file_path(file_path: str) -> Path:
+    try:
+        path = Path(file_path).resolve()
+        if not path.exists():
+            raise ValueError(f"File does not exist")
+        if not path.is_file():
+            raise ValueError(f"Path is not a file")
+        return path
+    except Exception as e:
+        logger.error(f"File validation error: {str(e)}")
+        raise
+
+def secure_file_operations(input_path: Path, output_path: Optional[Path] = None) -> Path:
+    if output_path is None:
+        output_path = input_path.parent / f"{input_path.stem}.fixed{input_path.suffix}"
+    
+    # Ensure output directory exists with secure permissions
+    output_path.parent.mkdir(parents=True, exist_ok=True, mode=0o755)
+    
+    # Validate write permissions
+    if output_path.exists() and not os.access(output_path.parent, os.W_OK):
+        raise PermissionError(f"No write permission for {output_path}")
+        
+    return output_path
+
+# This script is calling a code linter, obtain the list of problems and use GenAI to fix them.
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description='Process Java files with specified tool (default: PMD)'
@@ -41,18 +69,17 @@ def parse_arguments():
 
     args = parser.parse_args()
 
-    # Validate input file
-    if not os.path.exists(args.input_file):
-        parser.error(f"Input file '{args.input_file}' does not exist")
-
-    if not args.input_file.lower().endswith('.java'):
-        parser.error(f"Input file '{args.input_file}' is not a Java file")
-
-    # Generate default output filename if not provided
-    if not args.output:
-        input_path = Path(args.input_file)
-        args.output = str(input_path.parent / f"{input_path.stem}.fixed{input_path.suffix}")
-
+    try:
+        input_path = validate_file_path(args.input_file)
+        if input_path.suffix.lower() != '.java':
+            raise ValueError("File must have .java extension")
+            
+        args.input_file = str(input_path)
+        args.output = str(secure_file_operations(input_path))
+        
+    except Exception as e:
+        parser.error(str(e))
+        
     return args
 
 def main():
