@@ -58,7 +58,7 @@ def fix_corrections(input_file: str, output_file: str, violations: AnalysisResul
 Your task is to fix the violation to be conform with the rule "{violation.rule}" in the Java file passed as an attachment
 The recommendation to fix the issue are : {violation.description} and the documentation is {violation.url}.
 
-The output should be a Java source file that contains the minimum of modifications to fix the issue and keep the rest of the file untouched.
+It is highly criticial that the response is  a Java source file that contains the minimum of modifications from the original source file to fix the issue and keep the rest of the file untouched.
             
 No additional explanations or Notes unless you write them as a Java comment and provided as it.
 
